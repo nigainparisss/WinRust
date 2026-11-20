@@ -18,10 +18,12 @@ function Raise { $sp=(Get-Process SystemSettings -ErrorAction SilentlyContinue |
 function KillStale { Get-Process SystemSettings -ErrorAction SilentlyContinue | Where-Object { -not $_.Responding } | Stop-Process -Force }
 KillStale
 $started=$false
-if(-not (ExplorerShell)){
+if($env:WR_STARTED -or -not (ExplorerShell)){
+ if(-not $env:WR_STARTED){
   # our desktop is a window of class Progman too: with it up Explorer thinks a shell exists and starts as a plain folder host
   Get-Process rust-explorer -ErrorAction SilentlyContinue | ForEach-Object { if((Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -match '--desktop'){ Stop-Process -Id $_.Id -Force } }
   & runas.exe /trustlevel:0x20000 C:\Windows\explorer.exe
+ }
   for($i=0;$i -lt 200 -and -not (ExplorerShell);$i++){ Start-Sleep -Milliseconds 100 }
   # the shell window appears before the immersive shell services behind it are up: Explorer's own taskbar comes last (the
   # topbar has a Shell_TrayWnd of its own, so only one that belongs to the shell process counts)
@@ -49,7 +51,12 @@ if($started){
 "#;
 
 /// `uri` is passed through the environment, never spliced into the script. A second call while the first still waits is harmless.
+/// Explorer is started here, with the user's normal token (`shell::spawn_unelevated`); the script's `runas` is only the fallback.
 pub fn open(uri: &str) {
+    let started = !crate::shell::explorer_is_shell() && {
+        crate::shell::end_rs_desktop();
+        crate::shell::spawn_unelevated(crate::shell::EXPLORER).is_ok()
+    };
     let _ = Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", PS])
-        .env("WR_URI", uri).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).creation_flags(0x0800_0000).spawn();
+        .env("WR_URI", uri).env("WR_STARTED", if started { "1" } else { "" }).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).creation_flags(0x0800_0000).spawn();
 }

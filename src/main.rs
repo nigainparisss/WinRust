@@ -191,8 +191,8 @@ fn ensure_admin(args: &mut Vec<String>) {
         }
     }
     let text = t!(
-        "WinRust нужны права администратора, а Windows запустила его без них.\n\nНажмите на WinRust.exe правой кнопкой → «Запуск от имени администратора». Если не помогло: Свойства → Совместимость → снимите флажки и проверьте, что контроль учётных записей (UAC) включён.",
-        "WinRust needs administrator rights, but Windows started it without them.\n\nRight-click WinRust.exe → Run as administrator. If that doesn't help: Properties → Compatibility → clear the boxes, and check that User Account Control (UAC) is on."
+        "WinRust нужны права администратора, а Windows запустила его без них.\n\nНажмите на WinRust.exe правой кнопкой → «Запуск от имени администратора». Если окна UAC не было: выйдите из учётной записи и войдите снова. Ещё проверьте: Свойства → Совместимость (снимите флажки) и что UAC включён.",
+        "WinRust needs administrator rights, but Windows started it without them.\n\nRight-click WinRust.exe → Run as administrator. If no UAC prompt appeared: sign out and back in. Also check Properties → Compatibility (clear the boxes) and that UAC is on."
     );
     unsafe { MessageBoxW(null_mut(), wide(text).as_ptr(), wide("WinRust").as_ptr(), MB_OK | MB_ICONWARNING) };
     std::process::exit(5);
