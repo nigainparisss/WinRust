@@ -105,7 +105,7 @@ fn main() {
     nwg::init().expect("не удалось инициализировать Win32");
     let scale = nwg::scale_factor();
     let mut font = nwg::Font::default();
-    nwg::Font::builder().family("Segoe UI").size(17).build(&mut font).unwrap();
+    nwg::Font::builder().family(winrust_common::style::sans_face()).size(17).build(&mut font).unwrap();
     nwg::Font::set_global_default(Some(font));
 
     store::trim_history(10_080);

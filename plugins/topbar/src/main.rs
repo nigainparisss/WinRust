@@ -210,8 +210,13 @@ thread_local! {
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain([0]).collect()
 }
+/// One private-use character: a Segoe MDL2 / Fluent icon, drawn centred on its ink.
+fn is_icon(s: &str) -> bool {
+    let mut c = s.chars();
+    matches!((c.next(), c.next()), (Some('\u{E000}'..='\u{F8FF}'), None))
+}
 fn sc(v: i32) -> i32 {
-    (v as f32 * SCALE.get()) as i32
+    (v as f32 * SCALE.get()).round() as i32
 }
 fn bar_h() -> i32 {
     sc(BAR_H)
@@ -1597,6 +1602,9 @@ unsafe fn fill(dc: HDC, r: RECT, c: u32, rad: i32) {
 }
 
 unsafe fn text(dc: HDC, s: &str, mut r: RECT, c: u32, flags: u32) {
+    if flags & DT_CENTER != 0 && is_icon(s) {
+        return winrust_common::glyph::draw(dc, s, r, c);
+    }
     SetTextColor(dc, c);
     let w = wide(s);
     DrawTextW(dc, w.as_ptr(), -1, &mut r, flags | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);

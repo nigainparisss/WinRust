@@ -469,6 +469,10 @@ unsafe fn fill(dc: HDC, r: RECT, c: u32, rad: i32) {
 }
 
 unsafe fn text(dc: HDC, s: &str, mut r: RECT, c: u32, flags: u32) {
+    let mut ch = s.chars();
+    if flags & DT_CENTER != 0 && matches!((ch.next(), ch.next()), (Some('\u{E000}'..='\u{F8FF}'), None)) {
+        return winrust_common::glyph::draw(dc, s, r, c); // an icon: centred on its ink, not on the font's line box
+    }
     SetTextColor(dc, c);
     DrawTextW(dc, w(s).as_ptr(), -1, &mut r, flags | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
 }

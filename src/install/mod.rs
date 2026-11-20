@@ -2,12 +2,13 @@
 //! process/registry helpers, the embedded payload, and one file per plugin with its install/uninstall pair.
 use crate::*;
 mod explorer;
+mod fontlink;
 mod search;
 mod session;
 mod taskmgr;
 mod tools;
 mod topbar;
-pub(crate) use {explorer::*, search::*, session::*, taskmgr::*, tools::*, topbar::*};
+pub(crate) use {explorer::*, fontlink::*, search::*, session::*, taskmgr::*, tools::*, topbar::*};
 
 pub(crate) fn out(prog: &str, args: &[&str]) -> Result<String, String> {
     // reg.exe: HKCU means the signed-in user's, not the elevated account's (see session.rs)
@@ -135,6 +136,7 @@ pub(crate) fn install_plugin(i: usize) -> Result<String, String> {
         let back = uninst().err().map_or(String::new(), |u| tf!("; откат: {u}", "; rollback: {u}"));
         return Err(tf!("{e} (установка отменена, изменения возвращены{back})", "{e} (installation cancelled, changes reverted{back})"));
     }
+    soft(t!("грузинские буквы для SF Pro Display не подключены", "Georgian letters for SF Pro Display were not linked"), fontlink_install());
     let w = WARN.lock().unwrap().clone();
     log(&format!("{}: {} {}", p.name, if was { t!("обновлён", "updated") } else { t!("установлен", "installed") }, w.join(" | ")));
     let note = if w.is_empty() { String::new() } else { tf!(" Предупреждений: {} (см. %ProgramData%\\plugin-launcher\\install.log).", " Warnings: {} (see %ProgramData%\\plugin-launcher\\install.log).", w.len()) };
@@ -147,6 +149,9 @@ pub(crate) fn uninstall_plugin(i: usize) -> Result<String, String> {
     WARN.lock().unwrap().clear();
     init_soft();
     uninst().inspect_err(|e| log(&tf!("{}: ОШИБКА удаления {e}", "{}: uninstall ERROR {e}", p.name)))?;
+    if !PLUGINS.iter().any(|q| q.actions.is_some() && (q.installed)()) {
+        soft(t!("связь шрифтов SF Pro Display не возвращена", "SF Pro Display font link was not restored"), fontlink_uninstall());
+    }
     let w = WARN.lock().unwrap().clone();
     log(&format!("{}: {} {}", p.name, t!("удалён", "removed"), w.join(" | ")));
     let note = if w.is_empty() { String::new() } else { tf!(" Предупреждений: {} (см. %ProgramData%\\plugin-launcher\\install.log).", " Warnings: {} (see %ProgramData%\\plugin-launcher\\install.log).", w.len()) };
@@ -156,6 +161,7 @@ pub(crate) fn uninstall_plugin(i: usize) -> Result<String, String> {
 pub(crate) fn rollback() -> Result<String, String> {
     init_soft();
     // reverse install order: rust-explorer (which switched Explorer off) goes before topbar, else the session is left with no panel and no shell
-    let errs: Vec<String> = PLUGINS.iter().rev().filter(|p| (p.installed)()).filter_map(|p| p.actions.and_then(|a| a.1().err().map(|e| format!("{}: {e}", p.name)))).collect();
+    let mut errs: Vec<String> = PLUGINS.iter().rev().filter(|p| (p.installed)()).filter_map(|p| p.actions.and_then(|a| a.1().err().map(|e| format!("{}: {e}", p.name)))).collect();
+    errs.extend(fontlink_uninstall().err().map(|e| format!("fontlink: {e}")));
     if errs.is_empty() { Ok(t!("Все плагины удалены, система восстановлена.", "All plugins removed, system restored.").into()) } else { Err(errs.join("; ")) }
 }

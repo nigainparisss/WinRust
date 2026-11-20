@@ -224,7 +224,7 @@ unsafe extern "system" fn proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> 
         match msg {
             WM_CREATE => {
                 let dpi = GetDpiForSystem() as i32;
-                let f = CreateFontW(-(15 * dpi / 96), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, wide("Segoe UI").as_ptr());
+                let f = CreateFontW(-(15 * dpi / 96), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, wide(winrust_common::style::sans_face()).as_ptr());
                 APP.with_borrow_mut(|a| (a.dpi, a.font) = (dpi, f as isize));
                 0
             }

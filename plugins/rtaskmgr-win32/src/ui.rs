@@ -110,7 +110,7 @@ pub enum Font {
     Title,    // заголовок страницы
     Big,      // крупные числа
     Huge,     // заголовок ресурса на странице «Производительность»
-    Icons,    // значки (Segoe Fluent Icons)
+    Icons,    // значки (Segoe Fluent Icons или Segoe MDL2 Assets)
     IconsSm,
 }
 
@@ -123,23 +123,23 @@ fn mk(face: &str, px: i32, weight: i32) -> HFONT {
     unsafe { CreateFontW(-px, 0, 0, 0, weight, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, w.as_ptr()) }
 }
 
-/// Есть ли в системе шрифт значков Windows 11.
+/// Segoe Fluent Icons есть только в Windows 11; в Windows 10 (и LTSC) — Segoe MDL2 Assets с теми же кодами символов.
 fn icon_face() -> &'static str {
-    // Segoe Fluent Icons есть в Windows 11; в Windows 10 — Segoe MDL2 Assets (те же коды символов)
-    "Segoe Fluent Icons"
+    winrust_common::glyph::icon_face()
 }
 
 impl Fonts {
     pub fn new(s: f64) -> Fonts {
         let p = |x: f64| (x * s).round() as i32;
+        let ui = winrust_common::style::sans_face();
         Fonts {
             f: [
-                mk("Segoe UI", p(13.0), 400),
-                mk("Segoe UI", p(12.0), 400),
-                mk("Segoe UI Semibold", p(13.0), 600),
-                mk("Segoe UI Semibold", p(22.0), 600),
-                mk("Segoe UI", p(20.0), 400),
-                mk("Segoe UI", p(30.0), 300),
+                mk(ui, p(13.0), 400),
+                mk(ui, p(12.0), 400),
+                mk(ui, p(13.0), 600),
+                mk(ui, p(22.0), 600),
+                mk(ui, p(20.0), 400),
+                mk(ui, p(30.0), 300),
                 mk(icon_face(), p(16.0), 400),
                 mk(icon_face(), p(13.0), 400),
             ],
@@ -276,7 +276,12 @@ impl<'a> G<'a> {
     /// Символ из шрифта значков по центру прямоугольника.
     pub fn glyph(&self, r: R, ch: char, c: Rgb, small: bool) {
         let mut b = [0u8; 4];
-        self.text_center(r, ch.encode_utf8(&mut b), if small { Font::IconsSm } else { Font::Icons }, c);
+        let rc = windows_sys::Win32::Foundation::RECT { left: r.l, top: r.t, right: r.r, bottom: r.b };
+        unsafe {
+            let old = SelectObject(self.dc, self.fonts.get(if small { Font::IconsSm } else { Font::Icons }) as HGDIOBJ);
+            winrust_common::glyph::draw(self.dc as _, ch.encode_utf8(&mut b), rc, c.c()); // centred on the glyph's ink
+            SelectObject(self.dc, old);
+        }
     }
 
     pub fn polyline(&self, pts: &[POINT], c: Rgb, width: i32) {
