@@ -174,18 +174,18 @@ thread_local! { static SETTINGS: Cell<Option<usize>> = const { Cell::new(None) }
 thread_local! { static HOVER: Cell<Option<usize>> = const { Cell::new(None) }; }
 
 // The manifest asks for admin, but Windows runs the exe unelevated anyway when UAC is off for a standard user or a
-// RunAsInvoker compatibility flag is set; every install step would then fail with "Access is denied". Ask once more, else explain.
+// RunAsInvoker compatibility flag is set; every install step would then fail with "Access is denied". The window asks once more,
+// else explains. The command line is left alone: its own errors and exit code must reach the caller, not a detached child's.
 fn ensure_admin(args: &mut Vec<String>) {
     let retried = args.first().is_some_and(|a| a == "--elevated");
     if retried {
         args.remove(0);
     }
-    if unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0 {
+    if !args.is_empty() || unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0 {
         return;
     }
     if !retried && let Ok(exe) = env::current_exe() {
-        let params = std::iter::once("--elevated".to_string()).chain(args.iter().map(|a| format!("\"{a}\""))).collect::<Vec<_>>().join(" ");
-        let r = unsafe { windows_sys::Win32::UI::Shell::ShellExecuteW(null_mut(), wide("runas").as_ptr(), wide(&exe.to_string_lossy()).as_ptr(), wide(&params).as_ptr(), null(), SW_SHOWNORMAL) };
+        let r = unsafe { windows_sys::Win32::UI::Shell::ShellExecuteW(null_mut(), wide("runas").as_ptr(), wide(&exe.to_string_lossy()).as_ptr(), wide("--elevated").as_ptr(), null(), SW_SHOWNORMAL) };
         if r as isize > 32 {
             std::process::exit(0);
         }
