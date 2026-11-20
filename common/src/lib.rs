@@ -9,6 +9,7 @@ use std::{
 };
 
 pub mod desktop;
+pub mod glyph;
 pub mod mft;
 pub mod reg;
 pub mod settings;

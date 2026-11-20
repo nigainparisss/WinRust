@@ -124,7 +124,13 @@ pub fn pal() -> &'static Pal {
 
 /// The UI font of the current style.
 pub fn ui_face() -> &'static str {
-    if style().mono() { "Consolas" } else { "Segoe UI" }
+    if style().mono() { "Consolas" } else { sans_face() }
+}
+
+/// The proportional UI font: SF Pro Display when the user has installed it (it is not ours to ship), else Segoe UI.
+pub fn sans_face() -> &'static str {
+    static FACE: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+    FACE.get_or_init(|| if crate::glyph::installed("SF Pro Display") { "SF Pro Display" } else { "Segoe UI" })
 }
 
 #[cfg(test)]

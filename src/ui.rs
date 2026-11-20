@@ -70,11 +70,11 @@ impl Ui {
         DeleteObject(f);
     }
     unsafe fn text(&self, s: &str, b: Box4, size: f32, weight: i32, color: u32, flags: u32) {
-        self.text_in(s, b, size, weight, color, flags, "Segoe UI");
+        self.text_in(s, b, size, weight, color, flags, i18n::style::sans_face());
     }
     /// Width of a single line of text, logical px.
     unsafe fn width(&self, s: &str, size: f32, weight: i32) -> f32 {
-        let f = self.font(size, weight, "Segoe UI");
+        let f = self.font(size, weight, i18n::style::sans_face());
         let of = SelectObject(self.dc, f);
         let mut r: RECT = zeroed();
         DrawTextW(self.dc, wide(s).as_ptr(), -1, &mut r, DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
