@@ -173,8 +173,34 @@ static MSG: Mutex<(String, bool)> = Mutex::new((String::new(), true));
 thread_local! { static SETTINGS: Cell<Option<usize>> = const { Cell::new(None) }; } // plugin whose settings panel is open
 thread_local! { static HOVER: Cell<Option<usize>> = const { Cell::new(None) }; }
 
+// The manifest asks for admin, but Windows runs the exe unelevated anyway when UAC is off for a standard user or a
+// RunAsInvoker compatibility flag is set; every install step would then fail with "Access is denied". The window asks once more,
+// else explains. The command line is left alone: its own errors and exit code must reach the caller, not a detached child's.
+fn ensure_admin(args: &mut Vec<String>) {
+    let retried = args.first().is_some_and(|a| a == "--elevated");
+    if retried {
+        args.remove(0);
+    }
+    if !args.is_empty() || unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0 {
+        return;
+    }
+    if !retried && let Ok(exe) = env::current_exe() {
+        let r = unsafe { windows_sys::Win32::UI::Shell::ShellExecuteW(null_mut(), wide("runas").as_ptr(), wide(&exe.to_string_lossy()).as_ptr(), wide("--elevated").as_ptr(), null(), SW_SHOWNORMAL) };
+        if r as isize > 32 {
+            std::process::exit(0);
+        }
+    }
+    let text = t!(
+        "WinRust нужны права администратора, а Windows запустила его без них.\n\nНажмите на WinRust.exe правой кнопкой → «Запуск от имени администратора». Если окна UAC не было: выйдите из учётной записи и войдите снова. Ещё проверьте: Свойства → Совместимость (снимите флажки) и что UAC включён.",
+        "WinRust needs administrator rights, but Windows started it without them.\n\nRight-click WinRust.exe → Run as administrator. If no UAC prompt appeared: sign out and back in. Also check Properties → Compatibility (clear the boxes) and that UAC is on."
+    );
+    unsafe { MessageBoxW(null_mut(), wide(text).as_ptr(), wide("WinRust").as_ptr(), MB_OK | MB_ICONWARNING) };
+    std::process::exit(5);
+}
+
 fn main() {
-    let args: Vec<String> = env::args().skip(1).collect();
+    let mut args: Vec<String> = env::args().skip(1).collect();
+    ensure_admin(&mut args);
     if !args.is_empty() {
         std::process::exit(cli(&args));
     }

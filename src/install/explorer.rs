@@ -121,7 +121,9 @@ pub(crate) fn rx_uninstall() -> Result<(), String> {
     for n in ["rs-shell.exe", "rust-explorer.exe"] {
         let _ = run("taskkill", &["/f", "/im", n]);
     }
-    let _ = run("powershell", &["-NoProfile", "-Command", r#"if (-not (Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" | Where-Object { $_.CommandLine -match '(?i)explorer\.exe"?\s*$' })) { runas /trustlevel:0x20000 C:\Windows\explorer.exe }"#]);
+    if !i18n::shell::explorer_is_shell() && i18n::shell::spawn_unelevated(i18n::shell::EXPLORER).is_err() {
+        let _ = run("runas", &["/trustlevel:0x20000", i18n::shell::EXPLORER]);
+    }
     let _ = fs::remove_file(rx_lnk());
     let _ = fs::remove_file(start_lnk("Rust Explorer"));
     let _ = fs::remove_dir_all(rx_dir());
